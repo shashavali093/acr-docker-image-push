@@ -11,8 +11,8 @@ jobs:
 
     runs-on: ubuntu-latest
     env:
+       REGISTRY_NAME: pwcinfradockerrg
        IMAGE_NAME: springboot-petclinic-actions
-       PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
        TAGS: v1
 
     steps:
@@ -28,25 +28,25 @@ jobs:
       run: chmod +x mvnw
     - name: Build with Maven Wrapper
       run: ./mvnw clean install
-    - name: GCP SKD setup  
-      uses: google-github-actions/setup-gcloud@master
+    # Connect to Azure Container registry (ACR)
+    - uses: azure/docker-login@v1
       with:
-              project_id: ${{ secrets.GCP_PROJECT_ID }}
-              service_account_key: ${{ secrets.GCP_SA_KEY }}
-              export_default_credentials: true
+        login-server: ${{ env.REGISTRY_NAME }}.azurecr.io
+        username: ${{ secrets.REGISTRY_USERNAME }} 
+        password: ${{ secrets.REGISTRY_PASSWORD }}
     - name: change to server directory and build
       run: |-
         cd spring-petclinic-server ; 
         mvn clean package docker:build
     
-    - name: Docker GCP credential helper in cmd
-      run: |
-         gcloud auth configure-docker -q
+    # - name: Docker GCP credential helper in cmd
+    #   run: |
+    #      gcloud auth configure-docker -q
 
-    - name: tagging the image to push to GCR
+    - name: tagging the image to push to ACR
       run: |-
-        docker tag $IMAGE_NAME gcr.io/$PROJECT_ID/$IMAGE_NAME:$TAGS
+        docker tag $IMAGE_NAME ${{ env.REGISTRY_NAME }}.azurecr.io/$IMAGE_NAME:$TAGS
      
-    - name: Push image to GCR
+    - name: Push image to ACR
       run: |-
-          docker push gcr.io/$PROJECT_ID/$IMAGE_NAME:$TAGS
+          docker push ${{ env.REGISTRY_NAME }}.azurecr.io/$IMAGE_NAME:$TAGS
