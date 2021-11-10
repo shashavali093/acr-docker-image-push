@@ -1,0 +1,52 @@
+name: Java CI with Maven
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    env:
+       IMAGE_NAME: springboot-petclinic-actions
+       PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+       TAGS: v1
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up JDK 11
+      uses: actions/setup-java@v2
+      with:
+          java-version: '11'
+          distribution: 'adopt'
+          cache: maven
+      # exection permission
+    - name: adding execution mode 
+      run: chmod +x mvnw
+    - name: Build with Maven Wrapper
+      run: ./mvnw clean install
+    - name: GCP SKD setup  
+      uses: google-github-actions/setup-gcloud@master
+      with:
+              project_id: ${{ secrets.GCP_PROJECT_ID }}
+              service_account_key: ${{ secrets.GCP_SA_KEY }}
+              export_default_credentials: true
+    - name: change to server directory and build
+      run: |-
+        cd spring-petclinic-server ; 
+        mvn clean package docker:build
+    
+    - name: Docker GCP credential helper in cmd
+      run: |
+         gcloud auth configure-docker -q
+
+    - name: tagging the image to push to GCR
+      run: |-
+        docker tag $IMAGE_NAME gcr.io/$PROJECT_ID/$IMAGE_NAME:$TAGS
+     
+    - name: Push image to GCR
+      run: |-
+          docker push gcr.io/$PROJECT_ID/$IMAGE_NAME:$TAGS
