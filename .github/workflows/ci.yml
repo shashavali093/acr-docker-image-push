@@ -13,7 +13,10 @@ jobs:
     env:
        REGISTRY_NAME: pwcinfradockerrg
        IMAGE_NAME: springboot-petclinic-actions
-       TAGS: v1
+       TAGS: v5
+       HELM_EXPERIMENTAL_OCI: 1
+       HELM_VERSION_TO_INSTALL: 3.5.0
+       ACR_REPO_NAME: springboot/petclinic
 
     steps:
     - uses: actions/checkout@v2
@@ -50,3 +53,27 @@ jobs:
     - name: Push image to ACR
       run: |-
           docker push ${{ env.REGISTRY_NAME }}.azurecr.io/$IMAGE_NAME:$TAGS
+
+    - name: install helm
+      uses: Azure/setup-helm@v1
+      with:
+          version: ${{ env.HELM_VERSION_TO_INSTALL }} # default is latest
+
+    - name: login to acr using helm
+      run: |
+        echo $ | helm registry login ${{ env.REGISTRY_NAME }}.azurecr.io --username ${{ secrets.AZURE_CLIENT_ID }} --password-stdin 
+    
+    - name: Helm Repo Add
+      run: |
+        helm repo add ${{ env.REGISTRY_NAME }} https://${{ env.REGISTRY_NAME }}/helm/v1/repo --username ${{ secrets.REGISTRY_USERNAME }} --password ${{ secrets.REGISTRY_PASSWORD }}
+
+    - name: save helm chart to local registry
+      run: |
+        cd .\charts\petclinic
+        helm chart save . ${{ env.IMAGE_NAME }}:v${{ github.run_id }}
+        helm chart save . ${{ env.REGISTRY_NAME }}/helm/${{ env.IMAGE_NAME }}:v${{ github.run_id }}
+        helm chart list
+      
+    - name: publish chart to acr
+      run: |
+        helm chart push ${{ env.REGISTRY_NAME }}/helm/${{ env.IMAGE_NAME }}:v${{ github.run_id }}
