@@ -66,6 +66,8 @@ jobs:
     - name: Helm Repo Add
       run: |
         helm repo add ${{ env.REGISTRY_NAME }} https://${{ env.REGISTRY_NAME }}/helm/v1/repo --username ${{ secrets.REGISTRY_USERNAME }} --password ${{ secrets.REGISTRY_PASSWORD }}
+      env:
+        HELM_EXPERIMENTAL_OCI: 1
 
     - name: save helm chart to local registry
       run: |
@@ -73,7 +75,11 @@ jobs:
         helm chart save . ${{ env.IMAGE_NAME }}:v${{ github.run_id }}
         helm chart save . ${{ env.REGISTRY_NAME }}/helm/${{ env.IMAGE_NAME }}:v${{ github.run_id }}
         helm chart list
+      env:
+        HELM_EXPERIMENTAL_OCI: 1
       
     - name: publish chart to acr
       run: |
         helm chart push ${{ env.REGISTRY_NAME }}/helm/${{ env.IMAGE_NAME }}:v${{ github.run_id }}
+      env:
+        HELM_EXPERIMENTAL_OCI: 1
